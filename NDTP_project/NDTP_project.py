@@ -52,22 +52,23 @@ def reply_to_user(request, type):
 
 
 def search(request, type):
-    if type == 'song':
-        data = genius.search_songs(request, per_page=10)
-        hits = data['hits']
-        key = 'full_title'
-    elif type == 'lyrics':
-        data = genius.search_lyrics(request, per_page=10)
-        hits = data['sections'][0]['hits']
-        key = 'full_title'
-    elif type == 'artist':
-        data = genius.search_artists(request, per_page=10)
-        hits = data['sections'][0]['hits']
-        key = 'name'
-    elif type == 'album':
-        data = genius.search_albums(request, per_page=10)
-        hits = data['sections'][0]['hits']
-        key = 'full_title'
+    match type:
+        case 'song':
+            data = genius.search_songs(request, per_page=10)
+            hits = data['hits']
+            key = 'full_title'
+        case 'lyrics':
+            data = genius.search_lyrics(request, per_page=10)
+            hits = data['sections'][0]['hits']
+            key = 'full_title'
+        case 'artist':
+            data = genius.search_artists(request, per_page=10)
+            hits = data['sections'][0]['hits']
+            key = 'name'
+        case 'album':
+            data = genius.search_albums(request, per_page=10)
+            hits = data['sections'][0]['hits']
+            key = 'full_title'
     
     results = {'names':[],'ids':[]}
     for hit in hits:
@@ -118,118 +119,121 @@ def handle_callback(call):
     item_type = data[data.rfind('\\')+1:]
     chat_id = call.message.chat.id
 
-    if operation == 'nav':
-        if item_type == 'artist':
-            albums = genius.artist_albums(id)['albums']
-            photo_url = genius.artist(id)['artist']['image_url']
-            album_names = []
-            album_ids = []
+    match operation:
+        case 'nav':
+            match item_type:
+               case 'artist':
+                    albums = genius.artist_albums(id)['albums']
+                    photo_url = genius.artist(id)['artist']['image_url']
+                    album_names = []
+                    album_ids = []
 
-            for i in range(len(albums)):
-                album_names.append(albums[i]['name'])
-                album_ids.append(albums[i]['id'])
+                    for i in range(len(albums)):
+                        album_names.append(albums[i]['name'])
+                        album_ids.append(albums[i]['id'])
 
-            bot.send_photo(chat_id,
-            photo_url,
-            caption=f'Исполнитель {genius.artist(id)["artist"]["name"]}',
-            reply_markup=create_favs(id, 'artists'))
-            bot.send_message(chat_id, 'Дискография', reply_markup=create_result_keyboard(album_names, album_ids, 'album'))
-        elif item_type == 'album':
-            tracks = genius.album_tracks(id)['tracks']
-            cover_art_url = genius.cover_arts(album_id=id)['cover_arts'][0]['image_url']
-            track_names = []
-            track_ids = []
-            for i in range(len(tracks)):
-                track_names.append(tracks[i]['song']['title'])
-                track_ids.append(tracks[i]['song']['id'])
-            bot.send_photo(chat_id,
-            cover_art_url,
-            caption=f'Альбом {genius.album(id)["album"]["name"]}',
-            reply_markup=create_favs(id, 'albums'))
-            bot.send_message(chat_id, 'Трек-лист', reply_markup=create_result_keyboard(track_names, track_ids, 'song'))
-        else:
-            song = genius.song(id)['song']
-            header = f'Текст трека {song["title"]} в исполнении {song["album"]["artist"]["name"]}'
-            bot.send_message(chat_id, header, reply_markup=create_nav_keyboard(song))
+                    bot.send_photo(chat_id,
+                    photo_url,
+                    caption=f'Исполнитель {genius.artist(id)["artist"]["name"]}',
+                    reply_markup=create_favs(id, 'artists'))
+                    bot.send_message(chat_id, 'Дискография', reply_markup=create_result_keyboard(album_names, album_ids, 'album'))
+               case 'album':
+                    tracks = genius.album_tracks(id)['tracks']
+                    cover_art_url = genius.cover_arts(album_id=id)['cover_arts'][0]['image_url']
+                    track_names = []
+                    track_ids = []
+                    for i in range(len(tracks)):
+                        track_names.append(tracks[i]['song']['title'])
+                        track_ids.append(tracks[i]['song']['id'])
+                    bot.send_photo(chat_id,
+                    cover_art_url,
+                    caption=f'Альбом {genius.album(id)["album"]["name"]}',
+                    reply_markup=create_favs(id, 'albums'))
+                    bot.send_message(chat_id, 'Трек-лист', reply_markup=create_result_keyboard(track_names, track_ids, 'song'))
+               case _:
+                    song = genius.song(id)['song']
+                    header = f'Текст трека {song["title"]} в исполнении {song["album"]["artist"]["name"]}'
+                    bot.send_message(chat_id, header, reply_markup=create_nav_keyboard(song))
 
-            while True:
-                try:
-                    lyrics = genius.lyrics(song_id=id, remove_section_headers=True)
-                    break
-                except:
-                    pass
-            lyrics = lyrics[lyrics.find(song['title']) + len(song['title']) + 7:]
-            lyrics = purify_lyrics(lyrics)
+                    while True:
+                        try:
+                            lyrics = genius.lyrics(song_id=id, remove_section_headers=True)
+                            break
+                        except:
+                            pass
+                    lyrics = lyrics[lyrics.find(song['title']) + len(song['title']) + 7:]
+                    lyrics = purify_lyrics(lyrics)
 
-            bot.send_message(chat_id, lyrics, reply_markup=create_favs(id, 'songs'))
-    elif operation == 'fav':
-        with open ('favs.json', 'r') as file:
-            data = json.load(file)
-        if data.get(str(chat_id)) == None:
-            data[chat_id] = {'songs':[], 'albums':[], 'artists':[]}
-        item_index = -1
-        for i in range(len(data[str(chat_id)][item_type])):
-            if data[str(chat_id)][item_type][i] == id:
-                item_index = i
-        if item_index == -1:
-            data[str(chat_id)][item_type].append(id)
-        else:
-            del data[str(chat_id)][item_type][i]
+                    bot.send_message(chat_id, lyrics, reply_markup=create_favs(id, 'songs'))
+        case 'fav':
+            with open ('favs.json', 'r') as file:
+                data = json.load(file)
+            if data.get(str(chat_id)) == None:
+                data[chat_id] = {'songs':[], 'albums':[], 'artists':[]}
+            item_index = -1
+            for i in range(len(data[str(chat_id)][item_type])):
+                if data[str(chat_id)][item_type][i] == id:
+                    item_index = i
+            if item_index == -1:
+                data[str(chat_id)][item_type].append(id)
+            else:
+                del data[str(chat_id)][item_type][i]
 
-        with open ('favs.json', 'w') as file:
-            json.dump(data, file)
+            with open ('favs.json', 'w') as file:
+                json.dump(data, file)
 
 
 @bot.message_handler(content_types=['text'])
 def handle_text(message):
     text = message.text.capitalize()
     id = message.chat.id
-    if any([text == 'Поиск', text == 'К окну поиска']):
-        bot.send_message(id,'Что вы хотите найти?', reply_markup=search_keyboard)
-    elif text == 'В меню':
-        start_command_reply(message)
-    elif text == 'Обратная связь':
-        bot.send_message(id,'Разработчик бота: @Pcpszc', reply_markup=contact_keyboard)
-    elif text == 'Песню по названию':
-        bot_message = bot.send_message(id, 'Введите название песни', reply_markup=search_window_keyboard)
-        bot.register_next_step_handler(bot_message, reply_to_user, 'song')
-    elif text == 'Песню по отрывку текста':
-        bot_message = bot.send_message(id, 'Введите сторчку из песни', reply_markup=search_window_keyboard)
-        bot.register_next_step_handler(bot_message, reply_to_user, 'lyrics')
-    elif text == 'Альбом':
-        bot_message = bot.send_message(id, 'Введите название альбома', reply_markup=search_window_keyboard)
-        bot.register_next_step_handler(bot_message, reply_to_user, 'album')        
-    elif text == 'Исполнителя':
-        bot_message = bot.send_message(id, 'Введите имя исполнителя или название группы', reply_markup=search_window_keyboard)
-        bot.register_next_step_handler(bot_message, reply_to_user, 'artist')
-    elif text == 'Избранное':
-        bot.send_message(id, 'Ваш список избранного', reply_markup=favourites_keyboard)
-    elif text == 'Любимые треки':
-        with open ('favs.json') as file:
-            song_ids = json.load(file)[str(id)]['songs']
-        song_names = []
-        for song_id in song_ids:
-            song_names.append(genius.song(song_id)['song']['full_title'])
-        bot.send_message(id,'Ваши избранные треки:',
-        reply_markup = create_result_keyboard(song_names,song_ids, 'song'))
-    elif text == 'Любимые альбомы':
-        with open ('favs.json') as file:
-            album_ids = json.load(file)[str(id)]['albums']
-        album_names = []
-        for album_id in album_ids:
-            album_names.append(genius.album(album_id)['album']['name'])
-        bot.send_message(id,'Ваши избранные альбомы:',
-        reply_markup = create_result_keyboard(album_names,album_ids, 'album'))
-    elif text == 'Любимые исполнители':
-        with open ('favs.json') as file:
-            artist_ids = json.load(file)[str(id)]['artists']
-        artist_names = []
-        for artist_id in artist_ids:
-            artist_names.append(genius.artist(artist_id)['artist']['name'])
-        bot.send_message(id,'Ваши избранные исполнители:',
-        reply_markup = create_result_keyboard(artist_names, artist_ids, 'artist'))
-    else:
-        bot.send_message(id, 'Даже не знаю, что ответить')
+    match text:
+        case 'Поиск'|'К окну поиска':
+            bot.send_message(id,'Что вы хотите найти?', reply_markup=search_keyboard)
+        case 'В меню':
+            start_command_reply(message)
+        case 'Обратная связь':
+            bot.send_message(id,'Разработчик бота: @Pcpszc', reply_markup=contact_keyboard)
+        case 'Песню по названию':
+            bot_message = bot.send_message(id, 'Введите название песни', reply_markup=search_window_keyboard)
+            bot.register_next_step_handler(bot_message, reply_to_user, 'song')
+        case 'Песню по отрывку текста':
+            bot_message = bot.send_message(id, 'Введите сторчку из песни', reply_markup=search_window_keyboard)
+            bot.register_next_step_handler(bot_message, reply_to_user, 'lyrics')
+        case 'Альбом':
+            bot_message = bot.send_message(id, 'Введите название альбома', reply_markup=search_window_keyboard)
+            bot.register_next_step_handler(bot_message, reply_to_user, 'album')        
+        case 'Исполнителя':
+            bot_message = bot.send_message(id, 'Введите имя исполнителя или название группы', reply_markup=search_window_keyboard)
+            bot.register_next_step_handler(bot_message, reply_to_user, 'artist')
+        case 'Избранное':
+            bot.send_message(id, 'Ваш список избранного', reply_markup=favourites_keyboard)
+        case 'Любимые треки':
+            with open ('favs.json') as file:
+                song_ids = json.load(file)[str(id)]['songs']
+            song_names = []
+            for song_id in song_ids:
+                song_names.append(genius.song(song_id)['song']['full_title'])
+            bot.send_message(id,'Ваши избранные треки:',
+            reply_markup = create_result_keyboard(song_names,song_ids, 'song'))
+        case 'Любимые альбомы':
+            with open ('favs.json') as file:
+                album_ids = json.load(file)[str(id)]['albums']
+            album_names = []
+            for album_id in album_ids:
+                album_names.append(genius.album(album_id)['album']['name'])
+            bot.send_message(id,'Ваши избранные альбомы:',
+            reply_markup = create_result_keyboard(album_names,album_ids, 'album'))
+        case 'Любимые исполнители':
+            with open ('favs.json') as file:
+                artist_ids = json.load(file)[str(id)]['artists']
+            artist_names = []
+            for artist_id in artist_ids:
+                artist_names.append(genius.artist(artist_id)['artist']['name'])
+            bot.send_message(id,'Ваши избранные исполнители:',
+            reply_markup = create_result_keyboard(artist_names, artist_ids, 'artist'))
+        case _:
+            bot.send_message(id, 'Даже не знаю, что ответить')
 
 
 bot.polling()
