@@ -1,5 +1,6 @@
 # -*- coding: cp1251 -*-
 import json
+from os import name
 from Config import *
 from Music_classes import *
 
@@ -112,20 +113,13 @@ def handle_callback(call):
         case 'nav':
             match item_type:
                case 'artist':
-                    albums = genius.artist_albums(id)['albums']
-                    photo_url = genius.artist(id)['artist']['image_url']
-                    album_names = []
-                    album_ids = []
+                    searched_artist = Artist(id)
+                    name = searched_artist.name
+                    photo_url = searched_artist.photo_url
+                    discography = searched_artist.get_discography()
 
-                    for i in range(len(albums)):
-                        album_names.append(albums[i]['name'])
-                        album_ids.append(albums[i]['id'])
+                    bot.send_photo(chat_id, photo_url, title=name)
 
-                    bot.send_photo(chat_id,
-                    photo_url,
-                    caption=f'Исполнитель {genius.artist(id)["artist"]["name"]}',
-                    reply_markup=create_favs(id, 'artists'))
-                    bot.send_message(chat_id, 'Дискография', reply_markup=create_result_keyboard(album_names, album_ids, 'album'))
                case 'album':
                     tracks = genius.album_tracks(id)['tracks']
                     cover_art_url = genius.cover_arts(album_id=id)['cover_arts'][0]['image_url']
