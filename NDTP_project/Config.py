@@ -1,6 +1,6 @@
 import telebot
 import lyricsgenius
 
-bot = telebot.TeleBot('Your telebot key')
-genius = lyricsgenius.Genius('Your genius API key')
+bot = telebot.TeleBot('')
+genius = lyricsgenius.Genius('')
 types = telebot.types
