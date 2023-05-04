@@ -1,16 +1,8 @@
 # -*- coding: cp1251 -*-
-import telebot
-import lyricsgenius
 import json
+from Config import *
+from Music_classes import *
 
-
-with open ("keys.json", 'r') as file:
-    keys = json.load(file)
-
-
-bot = telebot.TeleBot(keys['telebot'])
-genius = lyricsgenius.Genius(keys['genius'])
-types = telebot.types
 
 main_menu_keyboard = types.ReplyKeyboardMarkup(True)
 main_menu_keyboard.row('Поиск', 'Избранное')
@@ -52,11 +44,12 @@ def reply_to_user(request, type):
 
 
 def search(request, type):
+    results = []
     match type:
         case 'song':
-            data = genius.search_songs(request, per_page=10)
-            hits = data['hits']
-            key = 'full_title'
+            hits = genius.search_songs(request, per_page=10)['hits']
+            for hit in hits:
+                results.append(Song(hit['result']['id']))
         case 'lyrics':
             data = genius.search_lyrics(request, per_page=10)
             hits = data['sections'][0]['hits']
@@ -69,11 +62,7 @@ def search(request, type):
             data = genius.search_albums(request, per_page=10)
             hits = data['sections'][0]['hits']
             key = 'full_title'
-    
-    results = {'names':[],'ids':[]}
-    for hit in hits:
-        results['names'].append(hit['result'][key])
-        results['ids'].append(hit['result']['id'])
+
     return results
 
 
@@ -108,7 +97,7 @@ def create_favs(id, type):
 
 @bot.message_handler(commands=['start'])
 def start_command_reply(message):
-    bot.send_message(message.chat.id, 'Текст про то, что умеет этот бот', reply_markup=main_menu_keyboard)
+    bot.send_message(message.chat.id, 'ахаха', reply_markup=main_menu_keyboard)
 
 
 @bot.callback_query_handler(func = lambda call: True)
